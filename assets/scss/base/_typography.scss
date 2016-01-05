@@ -24,28 +24,28 @@ h6 {
 }
 
 h1 {
-  font-size: rem(30);
+  font-size: 25pt;
   margin-top: 20px;
 }
 
 h2 {
-  font-size: rem(26);
+  font-size: 20pt;
   margin-top: 15px;
 }
 
 h3 {
-  font-size: rem(24);
+  font-size: 17pt;
   margin-top: 13px;
 }
 
 h4 {
-  font-size: rem(20);
+  font-size: 15pt;
   margin-top: 10px;
 }
 
 h5,
 h6 {
-  font-size: rem(16);
+  font-size: 13pt;
   margin-top: 5px;
 }
 
@@ -53,7 +53,7 @@ p {
   margin: 0 0 $small-spacing;
 
   &.lead {
-    font-size: rem(22);
+    font-size: 17pt;
     font-weight: 300;
   }
 }
