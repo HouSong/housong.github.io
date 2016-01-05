@@ -2,4 +2,3 @@
 # the following line to use "https"
 source 'https://rubygems.org/'
 gem 'github-pages'
-gem 'bourbon'
