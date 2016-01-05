@@ -20,27 +20,33 @@ h6 {
   line-height: $heading-line-height;
   margin: 0 0 $small-spacing;
   font-weight: 300;
+  position: relative;
 }
 
 h1 {
   font-size: rem(30);
+  margin-top: 20px;
 }
 
 h2 {
   font-size: rem(26);
+  margin-top: 15px;
 }
 
 h3 {
   font-size: rem(24);
+  margin-top: 13px;
 }
 
 h4 {
   font-size: rem(20);
+  margin-top: 10px;
 }
 
 h5,
 h6 {
   font-size: rem(16);
+  margin-top: 5px;
 }
 
 p {
@@ -106,4 +112,8 @@ pre {
   code {
     line-height: 1.75em;
   }
+}
+
+em {
+  font-style : italic ;
 }
