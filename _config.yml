@@ -28,7 +28,7 @@ sass:
 author:
   name     : Hou Song
   job      : Bigdata Engineer
-  bio      : "我是一名专业的大数据工程师，写这个博客为了记录工作上和生活上的点滴收获。出了明确标明，其他均属于个人原创，任何形式的转载请联系本人。"
+  bio      : "我是一名专业的大数据工程师，写这个博客为了记录工作上和生活上的点滴收获。除了明确标明，均属于个人原创，任何形式的转载请联系本人。"
   thumb    : /images/author.jpeg
   email    : song.hou@gmail.com
   url      : http://housong.github.io
