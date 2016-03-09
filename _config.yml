@@ -2,7 +2,7 @@
 # SEO settings
 title: 侯松的博客
 description: "侯松的个人博客，发布大数据技术相关的各种原创文章"
-keywords: "bigdata, hadoop, hbase, hive, presto, flume, spark"
+keywords: "bigdata, hadoop, hbase, hive, presto, flume, spark, elasticsearch, 知识图谱, 大数据风控"
 url: http://housong.github.io
 baseurl: ""
 # baseurl: null
