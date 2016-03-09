@@ -15,7 +15,7 @@ permalink   : /:year/:title/
 markdown    : kramdown
 highlighter : rouge
 
-paginate: 4
+paginate: 10
 paginate_path: "/page/:num/"
 comments: true
 
