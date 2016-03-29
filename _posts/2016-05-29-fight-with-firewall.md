@@ -9,7 +9,8 @@ categories: tech
 ---
 
 ## 远程调试
-用过Java的人都知道，jvm的远程调试可谓开发者的利器，线上问题的排查离不开它。常用如下的命令来启动
+用过Java的人都知道，jvm的远程调试可谓开发者的利器，线上问题的排查离不开它。常用如下的命令来启动：
+
 ```
 java -Xdebug -Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=19000 mainclass
 ```
@@ -30,6 +31,7 @@ java -Xdebug -Xrunjdwp:transport=dt_socket,server=y,address=12345 -jar myproduct
 4. 在D上打开Eclipse，新建remote debug，如下图：
 ![eclipse 1](/assets/images/Firewalls1.png)
 ![eclipse 2](/assets/images/Firewalls2.png)
+
 然后点debug就可以连接到S上面的服务进程，在D的代码里面设置断点，然后调用在S上面的服务，就可以在D上调试代码了。
 
 然后世界太平了？图森破。
