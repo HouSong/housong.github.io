@@ -18,6 +18,7 @@ highlighter : rouge
 paginate: 10
 paginate_path: "/page/:num/"
 comments: true
+future: true
 
 # Sass configuration
 sass:
