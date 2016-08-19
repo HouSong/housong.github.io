@@ -8,7 +8,8 @@ comments: true
 categories: tech
 ---
 
-在我们的Hbase集群中，有时存在有些_RegionServer_ 因为不能继续往_HDFS_ 中写入**WAL**数据而导致异常退出，相应的异常如下：
+在我们的Hbase集群中，有时存在有些 _RegionServer_ 因为不能继续往 _HDFS_ 中写入 **WAL** 数据而导致异常退出，相应的异常如下：
+
 <pre>
 2016-08-06 03:45:42,547 FATAL [regionserver/c1-hd-dn18.bdp.idc/10.130.1.37:16020.logRoller] regionserver.HRegionServer: ABORTING region server c1-hd-dn18.bdp.idc,16020,1469772903345: Failed log close in log roller
 org.apache.hadoop.hbase.regionserver.wal.FailedLogCloseException: hdfs://ns1/hbase/WALs/c1-hd-dn18.bdp.idc,16020,1469772903345/c1-hd-dn18.bdp.idc%2C16020%2C1469772903345.default.1470426151350, unflushedEntries=61
@@ -17,9 +18,11 @@ org.apache.hadoop.hbase.regionserver.wal.FailedLogCloseException: hdfs://ns1/hba
         at org.apache.hadoop.hbase.regionserver.LogRoller.run(LogRoller.java:137)
         at java.lang.Thread.run(Thread.java:745)
 </pre>
-产生这个FATAL之前，大量的 _"java.io.IOException:Failed to replace a bad datanode on the existing pipeline due to no more good datanodes being available to try."_ 记录在其日志文件中。 从该异常抛出的message来分析， 则意味着在 _RegionServer_ 输出这样异常的那刻起， 在_HDFS_集群范围内找不到一例可用的DataNode来加入到当前的_Stream Pipeline_ 中。 然而事实上，我们当时的_HDFS_还在正常提供着数据的增删改查功能，并非没有正常的_DataNode_可用。
 
-继续分析_RegionServer_的日志，在无可用_DataNode_之前，_RegionServer_会不断尝试与新的_DataNode_重建Stream Pipeline，毫无例外， 这样的尝试都失败了：
+产生这个FATAL之前，大量的 `java.io.IOException:Failed to replace a bad datanode on the existing pipeline due to no more good datanodes being available to try.` 记录在其日志文件中。 从该异常抛出的message来分析， 则意味着在 _RegionServer_ 输出这样异常的那刻起， 在 _HDFS_ 集群范围内找不到一例可用的DataNode来加入到当前的 _Stream Pipeline_ 中。 然而事实上，我们当时的 _HDFS_ 还在正常提供着数据的增删改查功能，并非没有正常的 _DataNode_ 可用。
+
+继续分析_RegionServer_的日志，在无可用_DataNode_之前，_RegionServer_ 会不断尝试与新的_DataNode_重建Stream Pipeline，毫无例外， 这样的尝试都失败了：
+
 <pre>
 2016-08-06 03:44:29,320 INFO  [DataStreamer for file /hbase/WALs/c1-hd-dn18.bdp.idc,16020,1469772903345/c1-hd-dn18.bdp.idc%2C16020%2C1469772903345.default.1470426151350 block BP-360285305-10.130.1.11-1444619256876:blk_1124743217_51010856] hdfs.DFSClient: Exception in createBlockOutputStream
 java.io.IOException: Got error, status message , ack with firstBadLink as 10.130.a.b:50010
@@ -31,7 +34,9 @@ java.io.IOException: Got error, status message , ack with firstBadLink as 10.130
 2016-08-06 03:44:29,321 WARN  [DataStreamer for file /hbase/WALs/c1-hd-dn18.bdp.idc,16020,1469772903345/c1-hd-dn18.bdp.idc%2C16020%2C1469772903345.default.1470426151350 block BP-360285305-10.130.1.11-1444619256876:blk_1124743217_51010856] hdfs.DFSClient: Error Recovery for block BP-360285305-10.130.1.11-1444619256876:blk_1124743217_51010856 in pipeline DatanodeInfoWithStorage[10.130.x.x:50010,DS-b2197bf5-f129-44df-b569-3ba0e51772c4,DISK], DatanodeInfoWithStorage[10.130.x.x:50010,DS-b0dc4a29-30fe-4633-a292-79274279e345,DISK], DatanodeInfoWithStorage[10.130.a.b:50010,DS-abe5559f-f706-4309-983b-08dd30bcdca4,DISK]: bad datanode DatanodeInfoWithStorage[10.130.a.b:50010,DS-abe5559f-f706-4309-983b-08dd30bcdca4,DISK]
 </pre>
 
-_RegionServer(DFSClient)_ 将_Bad DataNode_加入到一个不可用的队列**failed**中， 在向_NameNode_ 请求一个新的DataNode：
+
+
+_RegionServer(DFSClient)_ 将 _Bad DataNode_ 加入到一个不可用的队列 **failed** 中， 在向 _NameNode_ 请求一个新的DataNode：
 
 ```
   createBlockOutputStream:
@@ -46,7 +51,7 @@ _RegionServer(DFSClient)_ 将_Bad DataNode_加入到一个不可用的队列**fa
        //4, 生成新的generation stamp用以区分不同blk的不同版本
        //5, 创建pipeline输入输出流
      ｝
-   
+
    addDatanode2ExistingPipeline:
       //get a new datanode
       final DatanodeInfo[] original = nodes;
@@ -61,23 +66,25 @@ _RegionServer(DFSClient)_ 将_Bad DataNode_加入到一个不可用的队列**fa
 ```
 
 
-在新添加DataNode节点日志文件中，发现由于该节点并没有block的相应的replica，而不能执行append的操作。这直接导致client创建新的pipeline失败。该DataNode被标记为_Bad DataNode_, Client请求新的 _DataNode_ 组建新的pipeline，append block操作失败，..., 直到hdfs集群范围内的 _DataNode_ 被耗尽。
-***
+在新添加DataNode节点日志文件中，发现由于该节点并没有block的相应的replica，而不能执行append的操作。这直接导致client创建新的pipeline失败。该DataNode被标记为 _Bad DataNode_ , Client请求新的 _DataNode_ 组建新的pipeline，append block操作失败，..., 直到hdfs集群范围内的 _DataNode_ 被耗尽。
+
 DFSClient在使用新的DataNode恢复pipeline之前，由于新加入的DataNode中并没有block的replica数据，首先会从原pipeline中选择一台DataNode作为src, 向src发送一个transfer blk到新DataNode的一个RPC请求：
 
-``` 
+```
       //transfer replica
       final DatanodeInfo src = d == 0? nodes[1]: nodes[d - 1];
       final DatanodeInfo[] targets = {nodes[d]};
       final StorageType[] targetStorageTypes = {storageTypes[d]};
       transfer(src, targets, targetStorageTypes, lb.getBlockToken());
 ```
+
 由此，pipeline上所有的datanode都有blk，保证append操作能够继续进行。
 那么，结合新DataNode抛出的异常，很明显， blk并没有被transfer到新的DataNode节点上。
 
 在执行transfer操作的src datanode上，对应有这样的异常：
+
 <pre>
-f8162f70b22;nsid=920937379;c=0):Failed to transfer BP-360285305-10.130.1.11-1444619256876:blk_1124743217_51012555 to 10.130.a.b:50010 got
+BP-360285305-10.130.1.11-1444619256876:blk_1124743217_51012555 to 10.130.a.b:50010 got
 java.io.IOException: Need 96273147 bytes, but only 96270660 bytes available
         at org.apache.hadoop.hdfs.server.datanode.BlockSender.waitForMinLength(BlockSender.java:475)
         at org.apache.hadoop.hdfs.server.datanode.BlockSender.<init>(BlockSender.java:242)
@@ -93,12 +100,10 @@ java.io.IOException: Need 96273147 bytes, but only 96270660 bytes available
 结合代码，可知：**blk_1124743217** 出现了[ack bytes] > [bytes on disk]的现象，造成这台DataNode无法向10.130.a.b transfer replica的问题。
 
 当DFSClient每一次创建pipeline， 选择这台本身有问题的DataNode作为transfer source时， 那么在初始化pipeline输入输出流时(DataStreamer.createBlockOutputStream), 由于之前的transfer操作失败，pipeline上有些DataNode并没有block的replica，因此writeBlock操作并不能在pipeline所有的DataNode上顺利执行，pipeline创建失败。这样的现象类似于HDFS-6937，只不过因不同，结果类似。
-***
 
-现在问题变成，为什么在DN2(暂且称之为)中， 出现**blk_1124743217** 出现了[ack bytes] > [bytes on disk]的现象？
-最初的pipeline为: client -> DN1 -> DN2 -> DN3.
-
-在DN2中，由于其并非为pipeline中最后一个datanode, _RegionServer_中默认使用了hflush的方式来写入WAL， 所以当DN2接收到DN1的packet数据包(pkt)时,就将该pkt加入到等待ack的队列中。
+现在问题变成，为什么在DN2(暂且称之为)中， 出现 **blk_1124743217** 出现了[ack bytes] > [bytes on disk]的现象。
+最初的pipeline为: client -> DN1 -> DN2 -> DN3。
+在DN2中，由于其并非为pipeline中最后一个datanode, _RegionServer_ 中默认使用了hflush的方式来写入WAL， 所以当DN2接收到DN1的packet数据包(pkt)时,就将该pkt加入到等待ack的队列中。
 
 ```
    BlockReceiver#receivePacket:
@@ -109,15 +114,13 @@ java.io.IOException: Need 96273147 bytes, but only 96270660 bytes available
     }
 ```
 
-接着将pkt写入到DN3中， 
-
+接着将pkt写入到DN3中，
 最后，将pkt(data+checksum)写入到对应的文件中。并更新block replica [bytes on disk]的数据指标：
 
 ```
-         /// flush entire packet, sync if requested
-          flushOrSync(syncBlock);
-          
-          replicaInfo.setLastChecksumAndDataLen(offsetInBlock, lastCrc);
+    /// flush entire packet, sync if requested
+    flushOrSync(syncBlock);
+    replicaInfo.setLastChecksumAndDataLen(offsetInBlock, lastCrc);
 ```
 
 当DN2 PacketResponder接收到DN3的pkt ack数据时，更新block replica的[ack bytes]的数据指标：
@@ -134,6 +137,7 @@ java.io.IOException: Need 96273147 bytes, but only 96270660 bytes available
 其中， DN2将pkt写入到存储介质中与DN2接收DN3的ack数据，这两个过程是异步的。 也就是，可能在某一时刻，出现类似于“[ack bytes] > [bytes on disk]”的现象。
 
 在DN2日志中，有这样的一个异常：
+
 <pre>
 2016-08-06 03:44:26,172 INFO org.apache.hadoop.hdfs.server.datanode.DataNode: Exception for BP-360285305-10.130.1.11-1444619256876:blk_1124743217_51010856
 java.nio.channels.ClosedByInterruptException
@@ -151,30 +155,28 @@ java.nio.channels.ClosedByInterruptException
 </pre>
 
 从日志中，DN2在写入blk_1124743217 pkt过程中，被无情中断，这直接导致DN2无法更新blk_1124743217的[bytes on disk]的数据指标,造成了数据的永久丢失。
-****
 
 DN2只有完成以下这些步骤后，才准备接收下一个pkt：
-<li>enqueue pkt ack to waiting queue.</li>
-<li>flush pkt to downstream datanode.</li>
-<li>flush pkt to disk file.</li>
+
+1. enqueue pkt ack to waiting queue.
+2. flush pkt to downstream datanode.
+3. flush pkt to disk file.
 
 ```
 while (receivePacket() >= 0) { /* Receive until the last packet */ }
 ```
-DN2抛出**java.nio.channels.ClosedByInterruptException**异常时， Client为blk_1124743217建立的pipeline失败，从日志上分析，此后DN2上的blk_1124743217便不在有成功的数据写入操作。因此， 出现“[ack bytes] > [bytes on disk]”的现象时间可确定为在”2016-08-06 03:44:26“之前。
+
+DN2抛出 **java.nio.channels.ClosedByInterruptException** 异常时， Client为blk_1124743217建立的pipeline失败，从日志上分析，此后DN2上的blk_1124743217便不在有成功的数据写入操作。因此， 出现“[ack bytes] > [bytes on disk]”的现象时间可确定为在”2016-08-06 03:44:26“之前。
 
 对于上述的案例来说，设pkt是原pipeline中最后被成功的ack的packet，按照DFSClient的逻辑，该pipeline至少有另一个packet正在写或已在pipeline上，将其标记为pkt0.(_pkt并非block最后一个packet，而且上游持续有数据写入._)
 
 > 假设DN2上中断的异常属于pkt0。   
 
 pkt0被DN3接收之后，在DN3由于TimeOutException关闭之前将pkt0 ack数据发送给DN2, DN2接收到这样的数据之后，更新block ack bytes指标， 再将DN2和DN3的ack数据打包一起发给DN1. 要使pkt成为最后一个被成功ack的packet，且DN2出现 ack bytes > bytes on disk的现象， 则可能有以下几种情况：<br/>
-<li>
-DN2未将pkt0 ack数据发送给DN1。 那么存在这样的关系： a1 < a2, a1 为DN1的ack bytes指标； a2为DN2的ack bytes的指标。
- **在后来的DataNode stream recovery操作中， 显示a1=a2, 这样的情况被排除。**
-</li>
-<li>
-  DN1未将pkt0 ack数据发送给Client。那么DN1将会被Client标记成要替换的DataNode,而并非DN3了，而且Client重建pipeline的原因也是因为DN3的SocketTimeoutException，该信息沿ack传递路径经DN2 -> DN1传递给Client，Client才知道DN3出了问题。
-</li>   
+
+1. DN2未将pkt0 ack数据发送给DN1。 那么存在这样的关系： a1 < a2, a1 为DN1的ack bytes指标； a2为DN2的ack bytes的指标。**在后来的DataNode stream recovery操作中， 显示a1=a2, 这样的情况被排除。**
+2. DN1未将pkt0 ack数据发送给Client。那么DN1将会被Client标记成要替换的DataNode,而并非DN3了，而且Client重建pipeline的原因也是因为DN3的SocketTimeoutException，该信息沿ack传递路径经DN2 -> DN1传递给Client，Client才知道DN3出了问题。
+
 
  > 因此，可以下一个这样的结论：**在DN2上中断的pkt一定是原pipeline中最后一个被成功ack的packet。**
 
@@ -230,7 +232,7 @@ PBHelper.vintPrefixed:
   public static InputStream vintPrefixed(final InputStream input)
        throws IOException {
     final int firstByte = input.read();
-    
+
     if (firstByte == -1) {
        throw new EOFException("Premature EOF: no length prefix available");
     }
@@ -268,7 +270,7 @@ Client解析DN1传来的ack信息(seqno=-2), 发现DN3对应的ack状态为Error
 ****
 总结一下过程，
 
-1， Client flushes pkt to pipeline and gets succuss acks from DN1. 
+1， Client flushes pkt to pipeline and gets succuss acks from DN1.
       Stage -> BlockConstructionStage.DATA_STREAMING
 
 ![](../_images/snap.png)
@@ -297,7 +299,7 @@ Client解析DN1传来的ack信息(seqno=-2), 发现DN3对应的ack状态为Error
 
 根据设计:
 
-   ![](../_images/client.png) 
+   ![](../_images/client.png)
 
 在这里, BA(i, t)表示在任意时刻t，pipeline第i台 _DataNode_ acked bytes的指标,  i的大小代表离Client的远近；BR(i,t)表示在任意时刻t，pipeline第i台 _DataNode_ received bytes的指标, i的大小代表离Client的远近. 假设原pipeline中最后一台_DataNode_, acked bytes指标记为BAD， received bytes指标记为BR; 对应的Client, acked bytes记为 BAC, 发送的字节数记为BS。则,存在这样的不等式关系：
 **BAC <= BAD <= BR <= BS**。<br/>
@@ -311,20 +313,10 @@ Client解析DN1传来的ack信息(seqno=-2), 发现DN3对应的ack状态为Error
 同样，该方案也有明显的缺点，如果发生在不同机架上的数据拷贝，那么这样的方案将会对pipeline的快速恢复有一定的消极影响。 但如果_DataNode_在同一rack内，则完全有理由这么做。从理论上来说，block的多备份机制是为了减少各种故障导致数据异常而采取的一种方案，然而，这并不意味着数据会一直正常下去，在某些情况下，采用方案2也未能防止数据的完整正确性， 例如: 按照描述， 当DN1和DN2同时出现data acked bytes > data on disk bytes现象，而此时DN3不可用时，也会出现类似于文中描述的问题。
 
 
- 
-                               
-
-
-
-
-  
 
 
 
 
 
 
-
-  
-
-
+ 
