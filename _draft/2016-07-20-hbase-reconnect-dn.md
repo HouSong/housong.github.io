@@ -84,15 +84,55 @@ Caused by: java.io.IOException: Connection reset by peer
 ```
 
 找一台DataNode上线观察，并收集一段时间的log进行分析，得到了如下的输出。
+<pre>
+2016-07-07 19:41:41,077 INFO org.apache.hadoop.hdfs.server.datanode.DataNode.clienttrace: src: /10.130.1.29:50010, dest: /10.130.1.48:35358, bytes: 327680, op: HDFS_READ, cliID: DFSClient_NONMAPREDUCE_1151551783_1, offset: 44174336, srvID: f3d795cc-2b3b-43b9-90c3-e4157c031d2c, blockid: BP-360285305-10.130.1.11-1444619256876:blk_1108372123_34638287, duration: 13597476738896301, endOffset:50168268
+2016-07-07 19:41:41,426 INFO org.apache.hadoop.hdfs.server.datanode.DataNode.clienttrace: src: /10.130.1.29:50010, dest: /10.130.1.48:35364, bytes: 327680, op: HDFS_READ, cliID: DFSClient_NONMAPREDUCE_1151551783_1, offset: 44240384, srvID: f3d795cc-2b3b-43b9-90c3-e4157c031d2c, blockid: BP-360285305-10.130.1.11-1444619256876:blk_1108372123_34638287, duration: 13597477088563567, endOffset:50168268
+2016-07-07 19:41:41,643 INFO org.apache.hadoop.hdfs.server.datanode.DataNode.clienttrace: src: /10.130.1.29:50010, dest: /10.130.1.48:35368, bytes: 393216, op: HDFS_READ, cliID: DFSClient_NONMAPREDUCE_1151551783_1, offset: 44305920, srvID: f3d795cc-2b3b-43b9-90c3-e4157c031d2c, blockid: BP-360285305-10.130.1.11-1444619256876:blk_1108372123_34638287, duration: 13597477304937745, endOffset:50168268
+2016-07-07 19:41:41,844 INFO org.apache.hadoop.hdfs.server.datanode.DataNode.clienttrace: src: /10.130.1.29:50010, dest: /10.130.1.48:35373, bytes: 327680, op: HDFS_READ, cliID: DFSClient_NONMAPREDUCE_1151551783_1, offset: 44437504, srvID: f3d795cc-2b3b-43b9-90c3-e4157c031d2c, blockid: BP-360285305-10.130.1.11-1444619256876:blk_1108372123_34638287, duration: 13597477506783816, endOffset:50168268
+2016-07-07 19:41:42,290 INFO org.apache.hadoop.hdfs.server.datanode.DataNode.clienttrace: src: /10.130.1.29:50010, dest: /10.130.1.48:35377, bytes: 262144, op: HDFS_READ, cliID: DFSClient_NONMAPREDUCE_1151551783_1, offset: 44503040, srvID: f3d795cc-2b3b-43b9-90c3-e4157c031d2c, blockid: BP-360285305-10.130.1.11-1444619256876:blk_1108372123_34638287, duration: 13597477952726051, endOffset:50168268
+2016-07-07 19:41:42,541 INFO org.apache.hadoop.hdfs.server.datanode.DataNode.clienttrace: src: /10.130.1.29:50010, dest: /10.130.1.48:35389, bytes: 589824, op: HDFS_READ, cliID: DFSClient_NONMAPREDUCE_1151551783_1, offset: 44568576, srvID: f3d795cc-2b3b-43b9-90c3-e4157c031d2c, blockid: BP-360285305-10.130.1.11-1444619256876:blk_1108372123_34638287, duration: 13597478203646763, endOffset:50168268
+2016-07-07 19:41:42,761 INFO org.apache.hadoop.hdfs.server.datanode.DataNode.clienttrace: src: /10.130.1.29:50010, dest: /10.130.1.48:35393, bytes: 327680, op: HDFS_READ, cliID: DFSClient_NONMAPREDUCE_1151551783_1, offset: 44766208, srvID: f3d795cc-2b3b-43b9-90c3-e4157c031d2c, blockid: BP-360285305-10.130.1.11-1444619256876:blk_1108372123_34638287, duration: 13597478422925409, endOffset:50168268
+2016-07-07 19:41:42,954 INFO org.apache.hadoop.hdfs.server.datanode.DataNode.clienttrace: src: /10.130.1.29:50010, dest: /10.130.1.48:35396, bytes: 327680, op: HDFS_READ, cliID: DFSClient_NONMAPREDUCE_1151551783_1, offset: 44963328, srvID: f3d795cc-2b3b-43b9-90c3-e4157c031d2c, blockid: BP-360285305-10.130.1.11-1444619256876:blk_1108372123_34638287, duration: 13597478616454260, endOffset:50168268
+2016-07-07 19:41:43,305 INFO org.apache.hadoop.hdfs.server.datanode.DataNode.clienttrace: src: /10.130.1.29:50010, dest: /10.130.1.48:35402, bytes: 327680, op: HDFS_READ, cliID: DFSClient_NONMAPREDUCE_1151551783_1, offset: 45028864, srvID: f3d795cc-2b3b-43b9-90c3-e4157c031d2c, blockid: BP-360285305-10.130.1.11-1444619256876:blk_1108372123_34638287, duration: 13597478967544152, endOffset:50168268
+2016-07-07 19:41:43,530 INFO org.apache.hadoop.hdfs.server.datanode.DataNode.clienttrace: src: /10.130.1.29:50010, dest: /10.130.1.48:35414, bytes: 196608, op: HDFS_READ, cliID: DFSClient_NONMAPREDUCE_1151551783_1, offset: 45094912, srvID: f3d795cc-2b3b-43b9-90c3-e4157c031d2c, blockid: BP-360285305-10.130.1.11-1444619256876:blk_1108372123_34638287, duration: 13597479192103744, endOffset:50168268
+</pre>
 
-```
-2016-07-06 16:06:44,000 DEBUG org.apache.hadoop.hdfs.server.datanode.DataNode.clienttrace: src: /10.130.1.29:50010, dest: /10.130.1.45:33042, bytes: 2818048, op: HDFS_READ, cliID: DFSClient_NONMAPREDUCE_-1218287464_1, offset: 52549632, srvID: f3d795cc-2b3b-43b9-90c3-e4157c031d2c, blockid: BP-360285305-10.130.1.11-1444619256876:blk_1107985837_34251994, duration: 1274856797
-2016-07-06 16:06:44,779 DEBUG org.apache.hadoop.hdfs.server.datanode.DataNode.clienttrace: src: /10.130.1.29:50010, dest: /10.130.1.45:33046, bytes: 2686976, op: HDFS_READ, cliID: DFSClient_NONMAPREDUCE_-1218287464_1, offset: 54608896, srvID: f3d795cc-2b3b-43b9-90c3-e4157c031d2c, blockid: BP-360285305-10.130.1.11-1444619256876:blk_1107985837_34251994, duration: 778176643
-2016-07-06 16:06:44,811 DEBUG org.apache.hadoop.hdfs.server.datanode.DataNode.clienttrace: src: /10.130.1.29:50010, dest: /10.130.1.45:33052, bytes: 2621440, op: HDFS_READ, cliID: DFSClient_NONMAPREDUCE_-1218287464_1, offset: 56503296, srvID: f3d795cc-2b3b-43b9-90c3-e4157c031d2c, blockid: BP-360285305-10.130.1.11-1444619256876:blk_1107985837_34251994, duration: 31802187
-```
+分析这段日志，这些不同的请求有着相同的endOffset, 其中利用这些信息， 可获得一个大致的请求图：
+<pre>
+ | —————————————数据区间 －－－－－－－－－－－－－－｜
+ | －－｜  -> 1
+         |——| ->2 
+               |——| ->3
+                     |———| ->4
+                               |———| ->5
+                                       ….
+  －－－－－－－－－－> 时间
+  </pre>
+这些请求在时间上也有严格的先后顺序（从之前的日志可以看出，这部分日志的duration值是当前时间的ns表示)， 可以假设，这些请求都归属于某一个比较大的请求，用于某种原因，这些请求被分割成这些小请求。
+分析DFSInputStream的read方法，
 
-结合之前的`Not scheduling suspect block`的日志和DataNode的代码，能知道产生这些问题的浅层原因是，相同的一个Client不断的关闭连接并重连，而且是读取的相近位置。
+      read(final byte buf[], int off, int len)  
+                 -> readWithStrategy(ReaderStrategy strategy, int off, int len)
+                            分为两步：
+                               1， int result = readBuffer(strategy, off, realLen, corruptedBlockMap);  realLen 是此次read操作最大读取的字节数，这个和用户给了多大的buffer以及当前要读取的block剩余大小相关。
+                               2， pos += result,  移动pos
+                  ->  return result
+
+ 在上一步的readBuffer中， 
+ <pre>
+        readBuffer(strategy, off, realLen, corruptedBlockMap) 
+             -> return reader.doRead(blockReader, off, len); 
+                 -> 调用RemoteBlockReader2的reader.doRead(blockReader, off, len);
+                   在RemoteBlockReader2.read方法中，将底层读取的数据拷贝到用户的buf中，拷贝数据的大小为min{buf需要读取的len， 底层剩余待拷贝的字节数｝，当底层数据都被拷贝时，如果再需要读取时，则继续读取一个packet的数据量。
+                 -> 发生异常时(CheckSumException除外), 尝试与当前的datanode重新建立一条新的连接,  再次读取数据，
+</pre>
+每一次发生数据的拷贝， DFSInputStream的实例都会将pos += result,   当拷贝发生异常时，DFSInputStream会从上次读取成功的位置（pos）从新尝试与当前的DataNode创建一条新的连接， 这与当前DataNode这样的日志输出符合，
+也就是请求2之前， DFSInputStream读取请求1的数据失败， 尝试重新与c1-hd-dn10建立一条新的连接(请求2）， 从新连接中读取相应量的数据并成功返回此次的读取过程， 当用户读取n次操作后( 即重复调用n次DFSInputStream的read方法），此时发生异常，重新建立连接3，继续往上次成功读取的地方开始读取，依此类推，直到该DataNode被标记为DeadNode，也就是一个大请求被分割成很多个并不成功的子请求。
+
+**在DFSInputstream上加入相应的日志信息后，此时显示并非如上的假设，Client端读取数据时并没有发生这样的异常，这种可能性情况排除在外。**
+
 分析Client端的`DFSInputStream`，能得知在正常情况下（没有发生DN连接失败等错误），发生这种重连的原因基本只有一条：seek的时候发生了向前的seek操作。所以我们在这里增加了日志，位置在`seek(long position)`，代码如下：
+
 ```
 if(pos > targetPos) {
   DFSClient.LOG.info(dfsClient.getClientName() + " seek " + getCurrentDatanode() + " for " + getCurrentBlock() +
@@ -101,7 +141,7 @@ if(pos > targetPos) {
 ```
 
 把加了日志的Client代码在一台Hbase RegionServer上线，观察一段时间，发现了如下的一些log：
-```
+<pre>
 2016-07-10 21:31:42,147 INFO  [B.defaultRpcServer.handler=22,queue=1,port=16020] hdfs.DFSClient: DFSClient_NONMAPREDUCE_1984924661_1 seek DatanodeInfoWithStorage[10.130.1.29:50010,DS-086bc494-d862-470c-86e8-9cb7929985c6,DISK] for BP-360285305-10.130.1.11-1444619256876:blk_1109360829_35627143. pos: 111506876, targetPos: 111506843
 2016-07-10 21:31:42,715 INFO  [B.defaultRpcServer.handler=25,queue=1,port=16020] hdfs.DFSClient: DFSClient_NONMAPREDUCE_1984924661_1 seek DatanodeInfoWithStorage[10.130.1.29:50010,DS-086bc494-d862-470c-86e8-9cb7929985c6,DISK] for BP-360285305-10.130.1.11-1444619256876:blk_1109360829_35627143. pos: 113544644, targetPos: 113544611
 2016-07-10 21:31:43,341 INFO  [B.defaultRpcServer.handler=27,queue=0,port=16020] hdfs.DFSClient: DFSClient_NONMAPREDUCE_1984924661_1 seek DatanodeInfoWithStorage[10.130.1.29:50010,DS-086bc494-d862-470c-86e8-9cb7929985c6,DISK] for BP-360285305-10.130.1.11-1444619256876:blk_1109360829_35627143. pos: 115547269, targetPos: 115547236
@@ -112,9 +152,9 @@ if(pos > targetPos) {
 2016-07-10 21:31:46,402 INFO  [B.defaultRpcServer.handler=26,queue=2,port=16020] hdfs.DFSClient: DFSClient_NONMAPREDUCE_1984924661_1 seek DatanodeInfoWithStorage[10.130.1.29:50010,DS-086bc494-d862-470c-86e8-9cb7929985c6,DISK] for BP-360285305-10.130.1.11-1444619256876:blk_1109360829_35627143. pos: 125905163, targetPos: 125905130
 2016-07-10 21:31:47,027 INFO  [B.defaultRpcServer.handler=24,queue=0,port=16020] hdfs.DFSClient: DFSClient_NONMAPREDUCE_1984924661_1 seek DatanodeInfoWithStorage[10.130.1.29:50010,DS-086bc494-d862-470c-86e8-9cb7929985c6,DISK] for BP-360285305-10.130.1.11-1444619256876:blk_1109360829_35627143. pos: 128028947, targetPos: 128028914
 2016-07-10 21:31:47,649 INFO  [B.defaultRpcServer.handler=10,queue=1,port=16020] hdfs.DFSClient: DFSClient_NONMAPREDUCE_1984924661_1 seek DatanodeInfoWithStorage[10.130.1.29:50010,DS-086bc494-d862-470c-86e8-9cb7929985c6,DISK] for BP-360285305-10.130.1.11-1444619256876:blk_1109360829_35627143. pos: 130057763, targetPos: 130057730
-```
+</pre>
 相同时间段内的DataNode的log如下：
-```
+<pre>
 2016-07-10 21:31:34,263 DEBUG org.apache.hadoop.hdfs.server.datanode.DataNode.clienttrace: src: /10.130.1.29:50010, dest: /10.130.1.28:55243, bytes: 2555904, op: HDFS_READ, cliID: DFSClient_NONMAPREDUCE_1984924661_1, offset: 82832384, srvID: f3d795cc-2b3b-43b9-90c3-e4157c031d2c, blockid: BP-360285305-10.130.1.11-1444619256876:blk_1109360829_35627143, duration: 1083375057
 2016-07-10 21:31:35,080 DEBUG org.apache.hadoop.hdfs.server.datanode.DataNode.clienttrace: src: /10.130.1.29:50010, dest: /10.130.1.28:55248, bytes: 3080192, op: HDFS_READ, cliID: DFSClient_NONMAPREDUCE_1984924661_1, offset: 84848128, srvID: f3d795cc-2b3b-43b9-90c3-e4157c031d2c, blockid: BP-360285305-10.130.1.11-1444619256876:blk_1109360829_35627143, duration: 815747374
 2016-07-10 21:31:36,197 DEBUG org.apache.hadoop.hdfs.server.datanode.DataNode.clienttrace: src: /10.130.1.29:50010, dest: /10.130.1.28:55256, bytes: 3080192, op: HDFS_READ, cliID: DFSClient_NONMAPREDUCE_1984924661_1, offset: 88945152, srvID: f3d795cc-2b3b-43b9-90c3-e4157c031d2c, blockid: BP-360285305-10.130.1.11-1444619256876:blk_1109360829_35627143, duration: 1090853556
@@ -126,7 +166,7 @@ if(pos > targetPos) {
 2016-07-10 21:31:43,953 DEBUG org.apache.hadoop.hdfs.server.datanode.DataNode.clienttrace: src: /10.130.1.29:50010, dest: /10.130.1.28:55309, bytes: 2752512, op: HDFS_READ, cliID: DFSClient_NONMAPREDUCE_1984924661_1, offset: 115547136, srvID: f3d795cc-2b3b-43b9-90c3-e4157c031d2c, blockid: BP-360285305-10.130.1.11-1444619256876:blk_1109360829_35627143, duration: 608916868
 2016-07-10 21:31:45,230 DEBUG org.apache.hadoop.hdfs.server.datanode.DataNode.clienttrace: src: /10.130.1.29:50010, dest: /10.130.1.28:55316, bytes: 2949120, op: HDFS_READ, cliID: DFSClient_NONMAPREDUCE_1984924661_1, offset: 119567360, srvID: f3d795cc-2b3b-43b9-90c3-e4157c031d2c, blockid: BP-360285305-10.130.1.11-1444619256876:blk_1109360829_35627143, duration: 1239121220
 2016-07-10 21:31:47,679 DEBUG org.apache.hadoop.hdfs.server.datanode.DataNode.clienttrace: src: /10.130.1.29:50010, dest: /10.130.1.28:55338, bytes: 2490368, op: HDFS_READ, cliID: DFSClient_NONMAPREDUCE_1984924661_1, offset: 130057728, srvID: f3d795cc-2b3b-43b9-90c3-e4157c031d2c, blockid: BP-360285305-10.130.1.11-1444619256876:blk_1109360829_35627143, duration: 26523774
-```
+</pre>
 
 ### Debug信息的解读
 从这些log里我们能得到如下的一些信息：
@@ -141,19 +181,38 @@ if(pos > targetPos) {
 另外，Client请求的offset和DataNode的实际的offset有些区别，是因为DataNode的实际的offset要用chunk进行对齐，所以会稍向前移动一点。
 
 ### 问题的大致位置
-根据前面信息的解读，出问题的地方是执行scan的过程中，读取HFile的数据的时候，对于header的处理有问题，极有可能是之前读到了header，但因为某种原因再次读的时候没有找到，所以需要回过头去再读那33个字节。
+根据前面信息的解读，出问题的地方是执行scan的过程中，读取HFile的数据的时候，对于header的处理有问题，极有可能是之前读到了header，但因为某种原因再次读的时候没有找到，所以需要回过头去再读那33个字节。到目前为止，可论证该DataNode频繁输出这样日志的原因是由于client从过期的流中读取数据， 那么这样操作的原因是什么呢？
 
-分析regionserver中关于scan的执行代码，能看到scan的执行逻辑如下：
-*TBD*
-
-
-
-### Hbase相关部分代码的解读
+```
+    PrefetchedHeader prefetchedHeader = prefetchedHeaderForThread.get();
+    ByteBuffer headerBuf = prefetchedHeader.offset == offset? prefetchedHeader.buf: null;
+```
+这是在HFileBlock中的代码， 在进行读block操作时，首先从ThreadLocal中取出上一次预读的block头信息。
+根据日志输出栈的执行情况，可以知道每一个`seek`操作在不同的线程**(B.defaultRpcServer.handler)**上执行的。
+<pre>
+也就是说：
+   A线程预读了下一个block blk的头信息，
+   B线程从threadlocal中取出头信息，由于B线程的prefetchedHeader.offset ＝ －1， 此时prefetchedHeader.offset == offset 等式不成立， 因此此次操作需要读取blk的头信息。
+   底层的流在实现上，由于预读了blk的头信息。因此， 此时出现 pos > targetPos的现象。 
+于是出现了类似于文中描述的现象。
+</pre>
+regionserver scan的执行逻辑：
+  <li>http://www.cnblogs.com/foxmailed/p/3958546.html</li>
+  <li>http://co2y.github.io/2016/07/26/hbase-sourcecode-reading-1/</li>
+  <li>http://zjushch.iteye.com/blog/1235925</li>
+  
 
 ### 重现问题并最终确定问题点
-
+在大致知道问题的原因后， 我们在测试环境中往一个表中插入大量的行， scan这个表之后，在_DataNode_上类似
+<pre>
+org.apache.hadoop.hdfs.server.datanode.VolumeScanner: VolumeScanner(/data11/hadoop/dfs, DS-b233a64e-5286-441d-b424-50fddb6646f7): Not scheduling suspect block BP-360285305-10.130.1.11-1444619256876:blk_1105698824_31964911 for rescanning, because we rescanned it recently.
+org.apache.hadoop.hdfs.server.datanode.VolumeScanner: VolumeScanner(/data11/hadoop/dfs, DS-b233a64e-5286-441d-b424-50fddb6646f7): Not scheduling suspect block BP-360285305-10.130.1.11-1444619256876:blk_1105698824_31964911 for rescanning, because we rescanned it recently.
+</pre>
+这样的日志不期而至。使用patch修改过后，重新部署RegionServer之后，重新scan该表时，这些日志不复出现。<br/>
+同时，注意到，并非仅仅有用户的scan操作才会产生这样的问题，Hbase Hlog的读也会产生这样的日志。将ThreadLocal切换成一个普通的synchronized方式，这为的是能够尽量的减少RegionServer与DataNode的建立连接的次数，有关更多细节以及讨论，可见下面 `相关问题讨论`链接。
 ### Patch
-
+  [查看问题讨论](https://issues.apache.org/jira/browse/HBASE-16212)<br/>
+  
 ------
 
 ## Take away
