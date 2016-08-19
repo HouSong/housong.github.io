@@ -13,7 +13,7 @@ categories: tech
 做离线计算使用的Hbase集群数量较多，经常会有MapReduce或者Spark程序来批量scan Hbase的表。
 在运维的过程中，发现DataNode的log中经常会有类似于以下的大量log重复出现：
 
-{% highlight java linenos %}
+{% highlight java  %}
 2016-07-01 05:53:29,328 INFO org.apache.hadoop.hdfs.server.datanode.VolumeScanner: VolumeScanner(/data12/hadoop/dfs, DS-086bc494-d862-470c-86e8-9cb7929985c6): Not scheduling suspect block BP-360285305-10.130.1.11-1444619256876:blk_1095475173_21737939 for rescanning, because we rescanned it recently.
 2016-07-01 05:53:29,330 INFO org.apache.hadoop.hdfs.server.datanode.VolumeScanner: VolumeScanner(/data12/hadoop/dfs, DS-086bc494-d862-470c-86e8-9cb7929985c6): Not scheduling suspect block BP-360285305-10.130.1.11-1444619256876:blk_1095475173_21737939 for rescanning, because we rescanned it recently.
 2016-07-01 05:53:29,334 INFO org.apache.hadoop.hdfs.server.datanode.VolumeScanner: VolumeScanner(/data12/hadoop/dfs, DS-086bc494-d862-470c-86e8-9cb7929985c6): Not scheduling suspect block BP-360285305-10.130.1.11-1444619256876:blk_1095475173_21737939 for rescanning, because we rescanned it recently.
@@ -49,7 +49,7 @@ HBase是个复杂的系统，上面的分析还不足以确定具体问题点在
 
 首先，我们打开了一台DataNode的trace日志，监控了一段时间后发现了跟之前`Not scheduling suspect block`想临近的错误，如下：
 
-{% highlight java linenos %}
+{% highlight java  %}
 2016-06-30 11:21:34,320 TRACE org.apache.hadoop.hdfs.server.datanode.DataNode: DatanodeRegistration(10.130.1.29:50010, datanodeUuid=f3d795cc-2b3b-43b9-90c3-e4157c031d2c, infoPort=50075, infoSecurePort=0, ipcPort=50020, storageInfo=lv=-56;cid=CID-a99b693d-6f26-48fe-ad37-9f8162f70b22;nsid=920937379;c=0):Ignoring exception while serving BP-360285305-10.130.1.11-1444619256876:blk_1105510536_31776579 to /10.130.1.21:39933
 java.net.SocketException: Original Exception : java.io.IOException: Connection reset by peer
 at sun.nio.ch.FileChannelImpl.transferTo0(Native Method)
@@ -78,13 +78,13 @@ Caused by: java.io.IOException: Connection reset by peer
 
 原生的DataNode打印这个问题日志的地方并没有打印这些信息，这就需要我们做一些定制化的修改。大体的格式如下：
 
-{% highlight java linenos %}
+{% highlight bash %}
 2016-07-06 16:06:44,811 DEBUG org.apache.hadoop.hdfs.server.datanode.DataNode.clienttrace: src: /10.130.1.29:50010, dest: /10.130.1.45:33052, bytes: ［已读取的字节数］, op: ［操作］, cliID: ［client id］, offset: ［读字节起始位置］, srvID: f3d795cc-2b3b-43b9-90c3-e4157c031d2c, blockid: ［block ID］, duration: 此次read操作时间，单位为ns
 {% endhighlight %}
 
 找一台DataNode上线观察，并收集一段时间的log进行分析，得到了如下的输出。
 
-{% highlight java linenos %}
+{% highlight java  %}
 2016-07-07 19:41:41,077 INFO org.apache.hadoop.hdfs.server.datanode.DataNode.clienttrace: src: /10.130.1.29:50010, dest: /10.130.1.48:35358, bytes: 327680, op: HDFS_READ, cliID: DFSClient_NONMAPREDUCE_1151551783_1, offset: 44174336, srvID: f3d795cc-2b3b-43b9-90c3-e4157c031d2c, blockid: BP-360285305-10.130.1.11-1444619256876:blk_1108372123_34638287, duration: 13597476738896301, endOffset:50168268
 2016-07-07 19:41:41,426 INFO org.apache.hadoop.hdfs.server.datanode.DataNode.clienttrace: src: /10.130.1.29:50010, dest: /10.130.1.48:35364, bytes: 327680, op: HDFS_READ, cliID: DFSClient_NONMAPREDUCE_1151551783_1, offset: 44240384, srvID: f3d795cc-2b3b-43b9-90c3-e4157c031d2c, blockid: BP-360285305-10.130.1.11-1444619256876:blk_1108372123_34638287, duration: 13597477088563567, endOffset:50168268
 2016-07-07 19:41:41,643 INFO org.apache.hadoop.hdfs.server.datanode.DataNode.clienttrace: src: /10.130.1.29:50010, dest: /10.130.1.48:35368, bytes: 393216, op: HDFS_READ, cliID: DFSClient_NONMAPREDUCE_1151551783_1, offset: 44305920, srvID: f3d795cc-2b3b-43b9-90c3-e4157c031d2c, blockid: BP-360285305-10.130.1.11-1444619256876:blk_1108372123_34638287, duration: 13597477304937745, endOffset:50168268
@@ -99,7 +99,7 @@ Caused by: java.io.IOException: Connection reset by peer
 
 分析这段日志，这些不同的请求有着相同的endOffset, 其中利用这些信息， 可获得一个大致的请求图：
 
-{% highlight java linenos %}
+{% highlight bash %}
  | —————————————数据区间 －－－－－－－－－－－－－－｜
  | －－｜  -> 1
          |——| ->2
@@ -113,7 +113,7 @@ Caused by: java.io.IOException: Connection reset by peer
 这些请求在时间上也有严格的先后顺序（从之前的日志可以看出，这部分日志的duration值是当前时间的ns表示)， 可以假设，这些请求都归属于某一个比较大的请求，用于某种原因，这些请求被分割成这些小请求。
 分析DFSInputStream的read方法，
 
-{% highlight java linenos %}
+{% highlight bash %}
   read(final byte buf[], int off, int len)  
              -> readWithStrategy(ReaderStrategy strategy, int off, int len)
                         分为两步：
@@ -124,7 +124,7 @@ Caused by: java.io.IOException: Connection reset by peer
 
  在上一步的readBuffer中，
 
-{% highlight java linenos %}
+{% highlight bash %}
   readBuffer(strategy, off, realLen, corruptedBlockMap)
        -> return reader.doRead(blockReader, off, len);
            -> 调用RemoteBlockReader2的reader.doRead(blockReader, off, len);
@@ -139,7 +139,7 @@ Caused by: java.io.IOException: Connection reset by peer
 
 分析Client端的`DFSInputStream`，能得知在正常情况下（没有发生DN连接失败等错误），发生这种重连的原因基本只有一条：seek的时候发生了向前的seek操作。所以我们在这里增加了日志，位置在`seek(long position)`，代码如下：
 
-{% highlight java linenos %}
+{% highlight java  %}
 if(pos > targetPos) {
   DFSClient.LOG.info(dfsClient.getClientName() + " seek " + getCurrentDatanode() + " for " + getCurrentBlock() +
           ". pos: " + pos + ", targetPos: " + targetPos);
@@ -148,7 +148,7 @@ if(pos > targetPos) {
 
 把加了日志的Client代码在一台Hbase RegionServer上线，观察一段时间，发现了如下的一些log：
 
-{% highlight java linenos %}
+{% highlight java  %}
 2016-07-10 21:31:42,147 INFO  [B.defaultRpcServer.handler=22,queue=1,port=16020] hdfs.DFSClient: DFSClient_NONMAPREDUCE_1984924661_1 seek DatanodeInfoWithStorage[10.130.1.29:50010,DS-086bc494-d862-470c-86e8-9cb7929985c6,DISK] for BP-360285305-10.130.1.11-1444619256876:blk_1109360829_35627143. pos: 111506876, targetPos: 111506843
 2016-07-10 21:31:42,715 INFO  [B.defaultRpcServer.handler=25,queue=1,port=16020] hdfs.DFSClient: DFSClient_NONMAPREDUCE_1984924661_1 seek DatanodeInfoWithStorage[10.130.1.29:50010,DS-086bc494-d862-470c-86e8-9cb7929985c6,DISK] for BP-360285305-10.130.1.11-1444619256876:blk_1109360829_35627143. pos: 113544644, targetPos: 113544611
 2016-07-10 21:31:43,341 INFO  [B.defaultRpcServer.handler=27,queue=0,port=16020] hdfs.DFSClient: DFSClient_NONMAPREDUCE_1984924661_1 seek DatanodeInfoWithStorage[10.130.1.29:50010,DS-086bc494-d862-470c-86e8-9cb7929985c6,DISK] for BP-360285305-10.130.1.11-1444619256876:blk_1109360829_35627143. pos: 115547269, targetPos: 115547236
@@ -163,7 +163,7 @@ if(pos > targetPos) {
 
 相同时间段内的DataNode的log如下：
 
-{% highlight java linenos %}
+{% highlight java  %}
 2016-07-10 21:31:34,263 DEBUG org.apache.hadoop.hdfs.server.datanode.DataNode.clienttrace: src: /10.130.1.29:50010, dest: /10.130.1.28:55243, bytes: 2555904, op: HDFS_READ, cliID: DFSClient_NONMAPREDUCE_1984924661_1, offset: 82832384, srvID: f3d795cc-2b3b-43b9-90c3-e4157c031d2c, blockid: BP-360285305-10.130.1.11-1444619256876:blk_1109360829_35627143, duration: 1083375057
 2016-07-10 21:31:35,080 DEBUG org.apache.hadoop.hdfs.server.datanode.DataNode.clienttrace: src: /10.130.1.29:50010, dest: /10.130.1.28:55248, bytes: 3080192, op: HDFS_READ, cliID: DFSClient_NONMAPREDUCE_1984924661_1, offset: 84848128, srvID: f3d795cc-2b3b-43b9-90c3-e4157c031d2c, blockid: BP-360285305-10.130.1.11-1444619256876:blk_1109360829_35627143, duration: 815747374
 2016-07-10 21:31:36,197 DEBUG org.apache.hadoop.hdfs.server.datanode.DataNode.clienttrace: src: /10.130.1.29:50010, dest: /10.130.1.28:55256, bytes: 3080192, op: HDFS_READ, cliID: DFSClient_NONMAPREDUCE_1984924661_1, offset: 88945152, srvID: f3d795cc-2b3b-43b9-90c3-e4157c031d2c, blockid: BP-360285305-10.130.1.11-1444619256876:blk_1109360829_35627143, duration: 1090853556
@@ -192,7 +192,7 @@ if(pos > targetPos) {
 ### 问题的大致位置
 根据前面信息的解读，出问题的地方是执行scan的过程中，读取HFile的数据的时候，对于header的处理有问题，极有可能是之前读到了header，但因为某种原因再次读的时候没有找到，所以需要回过头去再读那33个字节。到目前为止，可论证该DataNode频繁输出这样日志的原因是由于client从过期的流中读取数据， 那么这样操作的原因是什么呢？
 
-{% highlight java linenos %}
+{% highlight java  %}
     PrefetchedHeader prefetchedHeader = prefetchedHeaderForThread.get();
     ByteBuffer headerBuf = prefetchedHeader.offset == offset? prefetchedHeader.buf: null;
 {% endhighlight %}
@@ -217,7 +217,7 @@ regionserver scan的执行逻辑：
 ### 重现问题并最终确定问题点
 在大致知道问题的原因后， 我们在测试环境中往一个表中插入大量的行， scan这个表之后，在_DataNode_上类似
 
-{% highlight java linenos %}
+{% highlight java  %}
 org.apache.hadoop.hdfs.server.datanode.VolumeScanner: VolumeScanner(/data11/hadoop/dfs, DS-b233a64e-5286-441d-b424-50fddb6646f7): Not scheduling suspect block BP-360285305-10.130.1.11-1444619256876:blk_1105698824_31964911 for rescanning, because we rescanned it recently.
 org.apache.hadoop.hdfs.server.datanode.VolumeScanner: VolumeScanner(/data11/hadoop/dfs, DS-b233a64e-5286-441d-b424-50fddb6646f7): Not scheduling suspect block BP-360285305-10.130.1.11-1444619256876:blk_1105698824_31964911 for rescanning, because we rescanned it recently.
 {% endhighlight %}
