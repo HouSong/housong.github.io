@@ -6,6 +6,7 @@ modified: 2016-08-18
 tags: [Hbase, Hadoop, HDFS, Datanode, debug, 调试]
 comments: true
 categories: tech
+author: 邓志华
 ---
 
 在我们的Hbase集群中，有时存在有些 _RegionServer_ 因为不能继续往 _HDFS_ 中写入 **WAL** 数据而导致异常退出，相应的异常如下：
