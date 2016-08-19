@@ -271,18 +271,18 @@ Client解析DN1传来的ack信息(seqno=-2), 发现DN3对应的ack状态为Error
 1， Client flushes pkt to pipeline and gets succuss acks from DN1. 
       Stage -> BlockConstructionStage.DATA_STREAMING
 
-![](https://dengzhhu653.github.io/images/snap.png)
+![](../_images/snap.png)
 
 2, Client flushes next pkt(pkt0) to pipeline and timeout from DN3. DN2 sends the error ack to DN1.  
-![](https://dengzhhu653.github.io/images/pkt0.png)
+![](../_images/pkt0.png)
 
 3, Client close current pipeline and choose DN4 to replace DN3, and transfer blk from DN2 to DN4.
-![](https://dengzhhu653.github.com/images/transfer.png)
+![](../_images/transfer.png)
 
 4, Create new pipeline with DN1, DN2 and DN4.
    Stage-> BlockConstructionStage.PIPELINE\_SETUP\_STREAMING_RECOVERY
 
-![](https://dengzhhu653.github.com/images/pipeline_new.png)
+![](../_images/pipeline_new.png)
 
 
 同时，通过分析，在往新的pipeline添加DataNode时，尽管DataNode在tranfer block过程中发生IOException(例如本例的例子), 然而Client是感知不到的，继续使用有问题的DataNode(数据已发生丢失)以及新DataNode重建pipeline。这样的话，在往pipeline写入数据时，是不会成功的。在符合DataNode替换策略的前提下，Client会尝试选择与HDFS集群范围内所有可用的DataNode建立一条pipeline，直到无DataNode可用为止。
@@ -297,7 +297,7 @@ Client解析DN1传来的ack信息(seqno=-2), 发现DN3对应的ack状态为Error
 
 根据设计:
 
-   ![](https://dengzhhu653.github.com/images/client.png) 
+   ![](../_images/client.png) 
 
 在这里, BA(i, t)表示在任意时刻t，pipeline第i台 _DataNode_ acked bytes的指标,  i的大小代表离Client的远近；BR(i,t)表示在任意时刻t，pipeline第i台 _DataNode_ received bytes的指标, i的大小代表离Client的远近. 假设原pipeline中最后一台_DataNode_, acked bytes指标记为BAD， received bytes指标记为BR; 对应的Client, acked bytes记为 BAC, 发送的字节数记为BS。则,存在这样的不等式关系：
 **BAC <= BAD <= BR <= BS**。<br/>
