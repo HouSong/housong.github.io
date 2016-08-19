@@ -6,6 +6,7 @@ modified: 2016-07-20
 tags: [Hbase, Hadoop, HDFS, Datanode, debug, 调试]
 comments: true
 categories: tech
+author: 侯松
 ---
 
 ## 问题表现

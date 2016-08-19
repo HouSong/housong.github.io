@@ -10,20 +10,20 @@ categories: tech
 
 在我们的Hbase集群中，有时存在有些 _RegionServer_ 因为不能继续往 _HDFS_ 中写入 **WAL** 数据而导致异常退出，相应的异常如下：
 
-<pre>
-2016-08-06 03:45:42,547 FATAL [regionserver/c1-hd-dn18.bdp.idc/10.130.1.37:16020.logRoller] regionserver.HRegionServer: ABORTING region server c1-hd-dn18.bdp.idc,16020,1469772903345: Failed log close in log roller
+{% highlight java  %}
+2016-08-06 03:45:42,547 FATAL [regionseerver/c1-hd-dn18.bdp.idc/10.130.1.37:16020.logRoller] regionserver.HRegionServer: ABORTING region server c1-hd-dn18.bdp.idc,16020,1469772903345: Failed log close in log roller
 org.apache.hadoop.hbase.regionserver.wal.FailedLogCloseException: hdfs://ns1/hbase/WALs/c1-hd-dn18.bdp.idc,16020,1469772903345/c1-hd-dn18.bdp.idc%2C16020%2C1469772903345.default.1470426151350, unflushedEntries=61
         at org.apache.hadoop.hbase.regionserver.wal.FSHLog.replaceWriter(FSHLog.java:988)
         at org.apache.hadoop.hbase.regionserver.wal.FSHLog.rollWriter(FSHLog.java:721)
         at org.apache.hadoop.hbase.regionserver.LogRoller.run(LogRoller.java:137)
         at java.lang.Thread.run(Thread.java:745)
-</pre>
+{% endhighlight %}
 
 产生这个FATAL之前，大量的 `java.io.IOException:Failed to replace a bad datanode on the existing pipeline due to no more good datanodes being available to try.` 记录在其日志文件中。 从该异常抛出的message来分析， 则意味着在 _RegionServer_ 输出这样异常的那刻起， 在 _HDFS_ 集群范围内找不到一例可用的DataNode来加入到当前的 _Stream Pipeline_ 中。 然而事实上，我们当时的 _HDFS_ 还在正常提供着数据的增删改查功能，并非没有正常的 _DataNode_ 可用。
 
 继续分析_RegionServer_的日志，在无可用_DataNode_之前，_RegionServer_ 会不断尝试与新的_DataNode_重建Stream Pipeline，毫无例外， 这样的尝试都失败了：
 
-<pre>
+{% highlight java  %}
 2016-08-06 03:44:29,320 INFO  [DataStreamer for file /hbase/WALs/c1-hd-dn18.bdp.idc,16020,1469772903345/c1-hd-dn18.bdp.idc%2C16020%2C1469772903345.default.1470426151350 block BP-360285305-10.130.1.11-1444619256876:blk_1124743217_51010856] hdfs.DFSClient: Exception in createBlockOutputStream
 java.io.IOException: Got error, status message , ack with firstBadLink as 10.130.a.b:50010
         at org.apache.hadoop.hdfs.protocol.datatransfer.DataTransferProtoUtil.checkBlockOpStatus(DataTransferProtoUtil.java:140)
@@ -32,13 +32,13 @@ java.io.IOException: Got error, status message , ack with firstBadLink as 10.130
         at org.apache.hadoop.hdfs.DFSOutputStream$DataStreamer.processDatanodeError(DFSOutputStream.java:876)
         at org.apache.hadoop.hdfs.DFSOutputStream$DataStreamer.run(DFSOutputStream.java:402)
 2016-08-06 03:44:29,321 WARN  [DataStreamer for file /hbase/WALs/c1-hd-dn18.bdp.idc,16020,1469772903345/c1-hd-dn18.bdp.idc%2C16020%2C1469772903345.default.1470426151350 block BP-360285305-10.130.1.11-1444619256876:blk_1124743217_51010856] hdfs.DFSClient: Error Recovery for block BP-360285305-10.130.1.11-1444619256876:blk_1124743217_51010856 in pipeline DatanodeInfoWithStorage[10.130.x.x:50010,DS-b2197bf5-f129-44df-b569-3ba0e51772c4,DISK], DatanodeInfoWithStorage[10.130.x.x:50010,DS-b0dc4a29-30fe-4633-a292-79274279e345,DISK], DatanodeInfoWithStorage[10.130.a.b:50010,DS-abe5559f-f706-4309-983b-08dd30bcdca4,DISK]: bad datanode DatanodeInfoWithStorage[10.130.a.b:50010,DS-abe5559f-f706-4309-983b-08dd30bcdca4,DISK]
-</pre>
+{% endhighlight %}
 
 
 
 _RegionServer(DFSClient)_ 将 _Bad DataNode_ 加入到一个不可用的队列 **failed** 中， 在向 _NameNode_ 请求一个新的DataNode：
 
-```
+{% highlight java  %}
   createBlockOutputStream:
      while(pipeline创建没有成功 && pipeline没有被关闭 && dfsclient在被使用） ｛
        //1, 如果有DataNode在写或者创建pipeline时出现问题，将出错的DataNode加入到不可用的队列中
@@ -63,27 +63,27 @@ _RegionServer(DFSClient)_ 将 _Bad DataNode_ 加入到一个不可用的队列 *
           failed.toArray(new DatanodeInfo[failed.size()]),
           1, dfsClient.clientName);
       setPipeline(lb);
-```
+{% endhighlight %}
 
 
 在新添加DataNode节点日志文件中，发现由于该节点并没有block的相应的replica，而不能执行append的操作。这直接导致client创建新的pipeline失败。该DataNode被标记为 _Bad DataNode_ , Client请求新的 _DataNode_ 组建新的pipeline，append block操作失败，..., 直到hdfs集群范围内的 _DataNode_ 被耗尽。
 
 DFSClient在使用新的DataNode恢复pipeline之前，由于新加入的DataNode中并没有block的replica数据，首先会从原pipeline中选择一台DataNode作为src, 向src发送一个transfer blk到新DataNode的一个RPC请求：
 
-```
+{% highlight java  %}
       //transfer replica
       final DatanodeInfo src = d == 0? nodes[1]: nodes[d - 1];
       final DatanodeInfo[] targets = {nodes[d]};
       final StorageType[] targetStorageTypes = {storageTypes[d]};
       transfer(src, targets, targetStorageTypes, lb.getBlockToken());
-```
+{% endhighlight %}
 
 由此，pipeline上所有的datanode都有blk，保证append操作能够继续进行。
 那么，结合新DataNode抛出的异常，很明显， blk并没有被transfer到新的DataNode节点上。
 
 在执行transfer操作的src datanode上，对应有这样的异常：
 
-<pre>
+{% highlight java  %}
 BP-360285305-10.130.1.11-1444619256876:blk_1124743217_51012555 to 10.130.a.b:50010 got
 java.io.IOException: Need 96273147 bytes, but only 96270660 bytes available
         at org.apache.hadoop.hdfs.server.datanode.BlockSender.waitForMinLength(BlockSender.java:475)
@@ -95,7 +95,7 @@ java.io.IOException: Need 96273147 bytes, but only 96270660 bytes available
         at org.apache.hadoop.hdfs.protocol.datatransfer.Receiver.processOp(Receiver.java:86)
         at org.apache.hadoop.hdfs.server.datanode.DataXceiver.run(DataXceiver.java:251)
         at java.lang.Thread.run(Thread.java:745)
-</pre>
+{% endhighlight %}
 
 结合代码，可知：**blk_1124743217** 出现了[ack bytes] > [bytes on disk]的现象，造成这台DataNode无法向10.130.a.b transfer replica的问题。
 
@@ -105,40 +105,40 @@ java.io.IOException: Need 96273147 bytes, but only 96270660 bytes available
 最初的pipeline为: client -> DN1 -> DN2 -> DN3。
 在DN2中，由于其并非为pipeline中最后一个datanode, _RegionServer_ 中默认使用了hflush的方式来写入WAL， 所以当DN2接收到DN1的packet数据包(pkt)时,就将该pkt加入到等待ack的队列中。
 
-```
+{% highlight java  %}
    BlockReceiver#receivePacket:
     // put in queue for pending acks, unless sync was requested
     if (responder != null && !syncBlock && !shouldVerifyChecksum()) {
       ((PacketResponder) responder.getRunnable()).enqueue(seqno,
           lastPacketInBlock, offsetInBlock, Status.SUCCESS);
     }
-```
+{% endhighlight %}
 
 接着将pkt写入到DN3中，
 最后，将pkt(data+checksum)写入到对应的文件中。并更新block replica [bytes on disk]的数据指标：
 
-```
+{% highlight java  %}
     /// flush entire packet, sync if requested
     flushOrSync(syncBlock);
     replicaInfo.setLastChecksumAndDataLen(offsetInBlock, lastCrc);
-```
+{% endhighlight %}
 
 当DN2 PacketResponder接收到DN3的pkt ack数据时，更新block replica的[ack bytes]的数据指标：
 
-```
+{% highlight java  %}
       PipelineAck replyAck = new PipelineAck(seqno, replies,
           totalAckTimeNanos);
       if (replyAck.isSuccess()
           && offsetInBlock > replicaInfo.getBytesAcked()) {
         replicaInfo.setBytesAcked(offsetInBlock);
       }
-```
+{% endhighlight %}
 
 其中， DN2将pkt写入到存储介质中与DN2接收DN3的ack数据，这两个过程是异步的。 也就是，可能在某一时刻，出现类似于“[ack bytes] > [bytes on disk]”的现象。
 
 在DN2日志中，有这样的一个异常：
 
-<pre>
+{% highlight java  %}
 2016-08-06 03:44:26,172 INFO org.apache.hadoop.hdfs.server.datanode.DataNode: Exception for BP-360285305-10.130.1.11-1444619256876:blk_1124743217_51010856
 java.nio.channels.ClosedByInterruptException
         at java.nio.channels.spi.AbstractInterruptibleChannel.end(AbstractInterruptibleChannel.java:202)
@@ -152,7 +152,7 @@ java.nio.channels.ClosedByInterruptException
         at org.apache.hadoop.hdfs.protocol.datatransfer.Receiver.processOp(Receiver.java:74)
         at org.apache.hadoop.hdfs.server.datanode.DataXceiver.run(DataXceiver.java:251)
         at java.lang.Thread.run(Thread.java:745)
-</pre>
+{% endhighlight %}
 
 从日志中，DN2在写入blk_1124743217 pkt过程中，被无情中断，这直接导致DN2无法更新blk_1124743217的[bytes on disk]的数据指标,造成了数据的永久丢失。
 
@@ -162,9 +162,9 @@ DN2只有完成以下这些步骤后，才准备接收下一个pkt：
 2. flush pkt to downstream datanode.
 3. flush pkt to disk file.
 
-```
+{% highlight java  %}
 while (receivePacket() >= 0) { /* Receive until the last packet */ }
-```
+{% endhighlight %}
 
 DN2抛出 **java.nio.channels.ClosedByInterruptException** 异常时， Client为blk_1124743217建立的pipeline失败，从日志上分析，此后DN2上的blk_1124743217便不在有成功的数据写入操作。因此， 出现“[ack bytes] > [bytes on disk]”的现象时间可确定为在”2016-08-06 03:44:26“之前。
 
@@ -181,7 +181,8 @@ pkt0被DN3接收之后，在DN3由于TimeOutException关闭之前将pkt0 ack数�
  > 因此，可以下一个这样的结论：**在DN2上中断的pkt一定是原pipeline中最后一个被成功ack的packet。**
 
 这个结论很重要，可以大致得到pipeline(DN1->DN2->DN3)出现问题那一刻DN2处理pkt时线程栈的情况，在BlockReceiver＃receivePacket方法中，往DN3写入pkt之后，adjustCrcFilePosition()方法之前，是没有比较耗时操作的。因此，DN2当时栈的情况应该是：
-<pre>
+
+{% highlight java  %}
         at java.nio.channels.spi.AbstractInterruptibleChannel.end(AbstractInterruptibleChannel.java:202)
         at sun.nio.ch.FileChannelImpl.position(FileChannelImpl.java:268)
         at org.apache.hadoop.hdfs.server.datanode.fsdataset.impl.FsDatasetImpl.adjustCrcChannelPosition(FsDatasetImpl.java:1479)
@@ -193,12 +194,12 @@ pkt0被DN3接收之后，在DN3由于TimeOutException关闭之前将pkt0 ack数�
         at org.apache.hadoop.hdfs.protocol.datatransfer.Receiver.processOp(Receiver.java:74)
         at org.apache.hadoop.hdfs.server.datanode.DataXceiver.run(DataXceiver.java:251)
         at java.lang.Thread.run(Thread.java:745)
-</pre>
+{% endhighlight %}
 
 由于DN2一直陷入文件寻址的过程中(处理pkt），造成DN2无法处理pkt0，进而无法将pkt0写入到DN3中，当超过60s时（rpc timeout），DN3率先抛出SocketTimeoutException异常，将属于pipeline的socket资源关闭，在DN2接收下游DN3上的ack数据线程抛出异常。
 
 DN3:
-<pre>
+{% highlight java  %}
 2016-08-06 03:44:22,981 INFO org.apache.hadoop.hdfs.server.datanode.DataNode: Exception for BP-360285305-10.130.1.11-1444619256876:blk_1124743217_51010856
 java.net.SocketTimeoutException: 60000 millis timeout while waiting for channel to be ready for read. ch : java.nio.channels.SocketChannel[connected local=/DN3:50010 remote=/DN2:43529]
         at org.apache.hadoop.net.SocketIOWithTimeout.doIO(SocketIOWithTimeout.java:164)
@@ -214,21 +215,21 @@ java.net.SocketTimeoutException: 60000 millis timeout while waiting for channel 
         at org.apache.hadoop.hdfs.protocol.datatransfer.PacketReceiver.receiveNextPacket(PacketReceiver.java:109)
         at org.apache.hadoop.hdfs.server.datanode.BlockReceiver.receivePacket(BlockReceiver.java:472)
         at org.apache.hadoop.hdfs.server.datanode.BlockReceiver.receiveBlock(BlockReceiver.java:849)
-</pre>
+{% endhighlight %}
 
 DN2:
-<pre>
+{% highlight java  %}
 2016-08-06 03:44:22,982 INFO org.apache.hadoop.hdfs.server.datanode.DataNode: PacketResponder: BP-360285305-10.130.1.11-1444619256876:blk_1124743217_51010856, type=HAS_DOWNSTREAM_IN_PIPELINE
 java.io.EOFException: Premature EOF: no length prefix available
         at org.apache.hadoop.hdfs.protocolPB.PBHelper.vintPrefixed(PBHelper.java:2280)
         at org.apache.hadoop.hdfs.protocol.datatransfer.PipelineAck.readFields(PipelineAck.java:244)
         at org.apache.hadoop.hdfs.server.datanode.BlockReceiver$PacketResponder.run(BlockReceiver.java:1237)
         at java.lang.Thread.run(Thread.java:745)
-</pre>
+{% endhighlight %}
 
 PBHelper.vintPrefixed:
 
-```
+{% highlight java  %}
   public static InputStream vintPrefixed(final InputStream input)
        throws IOException {
     final int firstByte = input.read();
@@ -236,34 +237,36 @@ PBHelper.vintPrefixed:
     if (firstByte == -1) {
        throw new EOFException("Premature EOF: no length prefix available");
     }
-```
+{% endhighlight %}
+
 DN2的PacketResponder收到DN3的异常消息之后，将DN3这台DataNode标记为Error，并reply给DN1, DN1将错误信息打包后交给Client:
 
-     ```
-     if (ack == null) {
-        // A new OOB response is being sent from this node. Regardless of
-        // downstream nodes, reply should contain one reply.
-        replies = new int[] { myHeader };
-      //这里mirrorError ＝ true;
-      } else if (mirrorError) { // ack read error
-        int h = PipelineAck.combineHeader(datanode.getECN(), Status.SUCCESS);
-        int h1 = PipelineAck.combineHeader(datanode.getECN(), Status.ERROR);
-        replies = new int[] {h, h1};
-      }
-      ```
+{% highlight java  %}
+if (ack == null) {
+  // A new OOB response is being sent from this node. Regardless of
+  // downstream nodes, reply should contain one reply.
+  replies = new int[] { myHeader };
+  //这里mirrorError ＝ true;
+} else if (mirrorError) { // ack read error
+  int h = PipelineAck.combineHeader(datanode.getECN(), Status.SUCCESS);
+  int h1 = PipelineAck.combineHeader(datanode.getECN(), Status.ERROR);
+  replies = new int[] {h, h1};
+}
+{% endhighlight %}
+
 Client解析DN1传来的ack信息(seqno=-2), 发现DN3对应的ack状态为Error的，Client将DN3标记为一个不可用的_DataNode_, 并将对应的ResponseProcessor线程关闭，
 
-```
-    // if the Responder encountered an error, shutdown Responder
-        if (hasError && response != null) {
-          try {
-            response.close();
-            response.join();
-            response = null;
-          } catch (InterruptedException  e) {
-            DFSClient.LOG.warn("Caught exception ", e);
-        }
-```
+{% highlight java  %}
+// if the Responder encountered an error, shutdown Responder
+  if (hasError && response != null) {
+    try {
+      response.close();
+      response.join();
+      response = null;
+    } catch (InterruptedException  e) {
+      DFSClient.LOG.warn("Caught exception ", e);
+  }
+{% endhighlight %}
 
 在DataStreamer主线程上，将原来的pipeline关闭，将待ack的pkt0移到要发送的队列队首中,重新选择DataNode(放弃DN3)建立pipeline. 在恢复pipeline的过程中，使用DN2作为transfer source， 而原来DN2中的replica是有问题的(数据丢失), 这样便造成新的pipeline无法创建成功。可以预估DN2 position file操作大概所花的时间约为1min。
 
