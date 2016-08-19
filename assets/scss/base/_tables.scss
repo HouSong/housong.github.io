@@ -48,6 +48,8 @@ th {
 }
 
 .highlight {
+  padding: 0px;
+  
   pre.lineno {
     border: none;
     @include opacity(0.6);

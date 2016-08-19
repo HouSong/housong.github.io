@@ -40,7 +40,6 @@ author:
 og_locale: "zh_CN"
 
 gems:
-  - bourbon
   - jekyll-paginate
 
 # navbar pages
