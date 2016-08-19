@@ -193,8 +193,8 @@ if(pos > targetPos) {
 根据前面信息的解读，出问题的地方是执行scan的过程中，读取HFile的数据的时候，对于header的处理有问题，极有可能是之前读到了header，但因为某种原因再次读的时候没有找到，所以需要回过头去再读那33个字节。到目前为止，可论证该DataNode频繁输出这样日志的原因是由于client从过期的流中读取数据， 那么这样操作的原因是什么呢？
 
 {% highlight java  %}
-    PrefetchedHeader prefetchedHeader = prefetchedHeaderForThread.get();
-    ByteBuffer headerBuf = prefetchedHeader.offset == offset? prefetchedHeader.buf: null;
+    PrefetchedHeader prefetchedHeader = prefetchedHeaderForThread.get();
+    ByteBuffer headerBuf = prefetchedHeader.offset == offset? prefetchedHeader.buf: null;
 {% endhighlight %}
 
 这是在HFileBlock中的代码， 在进行读block操作时，首先从ThreadLocal中取出上一次预读的block头信息。
@@ -209,9 +209,9 @@ if(pos > targetPos) {
 
 regionserver scan的执行逻辑：
 
-1. http://www.cnblogs.com/foxmailed/p/3958546.html
-2. http://co2y.github.io/2016/07/26/hbase-sourcecode-reading-1/
-3. http://zjushch.iteye.com/blog/1235925
+1. [http://www.cnblogs.com/foxmailed/p/3958546.html](http://www.cnblogs.com/foxmailed/p/3958546.html)
+2. [http://co2y.github.io/2016/07/26/hbase-sourcecode-reading-1/](http://co2y.github.io/2016/07/26/hbase-sourcecode-reading-1/)
+3. [http://zjushch.iteye.com/blog/1235925](http://zjushch.iteye.com/blog/1235925)
 
 
 ### 重现问题并最终确定问题点
