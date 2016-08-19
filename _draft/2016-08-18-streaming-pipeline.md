@@ -297,7 +297,7 @@ Client解析DN1传来的ack信息(seqno=-2), 发现DN3对应的ack状态为Error
 
 根据设计:
 
-   ![](https://dengzhhu653.github.com/images/client.png) 
+   ![](../_images/client.png) 
 
 在这里, BA(i, t)表示在任意时刻t，pipeline第i台 _DataNode_ acked bytes的指标,  i的大小代表离Client的远近；BR(i,t)表示在任意时刻t，pipeline第i台 _DataNode_ received bytes的指标, i的大小代表离Client的远近. 假设原pipeline中最后一台_DataNode_, acked bytes指标记为BAD， received bytes指标记为BR; 对应的Client, acked bytes记为 BAC, 发送的字节数记为BS。则,存在这样的不等式关系：
 **BAC <= BAD <= BR <= BS**。<br/>
