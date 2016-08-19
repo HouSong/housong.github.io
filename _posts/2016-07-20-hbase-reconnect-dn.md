@@ -49,7 +49,8 @@ HBase是个复杂的系统，上面的分析还不足以确定具体问题点在
 
 首先，我们打开了一台DataNode的trace日志，监控了一段时间后发现了跟之前`Not scheduling suspect block`想临近的错误，如下：
 
-```
+<figure class="lineno-container">
+{% highlight java lineanchors %}
 2016-06-30 11:21:34,320 TRACE org.apache.hadoop.hdfs.server.datanode.DataNode: DatanodeRegistration(10.130.1.29:50010, datanodeUuid=f3d795cc-2b3b-43b9-90c3-e4157c031d2c, infoPort=50075, infoSecurePort=0, ipcPort=50020, storageInfo=lv=-56;cid=CID-a99b693d-6f26-48fe-ad37-9f8162f70b22;nsid=920937379;c=0):Ignoring exception while serving BP-360285305-10.130.1.11-1444619256876:blk_1105510536_31776579 to /10.130.1.21:39933
 java.net.SocketException: Original Exception : java.io.IOException: Connection reset by peer
 at sun.nio.ch.FileChannelImpl.transferTo0(Native Method)
@@ -67,7 +68,8 @@ at org.apache.hadoop.hdfs.server.datanode.DataXceiver.run(DataXceiver.java:251)
 at java.lang.Thread.run(Thread.java:745)
 Caused by: java.io.IOException: Connection reset by peer
 ... 13 more
-```
+{% endhighlight %}
+</figure>
 
 可以看出，是DataNode向Client发送数据的过程中，Client主动关闭了连接，而在DataNode认为旧的连接所对应的请求数据还未被完全写完，当往一条被客户端关闭的连接继续写入数据时，则抛出`IOException: Connection reset by peer`的异常，但从这些Trace log中还是缺少一些我们需要的信息，例如：
 
