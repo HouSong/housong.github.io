@@ -22,8 +22,8 @@ categories: tech
 2. 关联性：听众为什么要对你的演讲 *感兴趣* ，你的话对他们有什么 *价值* 。
 3. 要点：用 *一句话* 阐明你的观点，
 
-总结下来，如下图：
-!(Outline)[/assets/images/Preparation Outline.pdf]
+总结下来，如这个
+(PDF)[/assets/images/Preparation Outline.pdf]
 
 ### 结构
 
