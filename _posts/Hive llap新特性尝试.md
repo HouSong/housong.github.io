@@ -1,0 +1,234 @@
+---
+layout: post
+title: Hive Llap尝试（0）
+modified: 2017-03-15
+tags: [大数据, Hadoop, Hive, Llap]
+comments: true
+categories: tech
+---
+## Hive llap尝试
+ 在Hive2.0版本上引进了```Hive llap(Live Long and Process)```这种新特性，与Tez计算引擎结合紧密，类似于Presto和Impala， 她预先启动一组进程，等待有解析好的task的到来并执行。 在这计算模型的基础上，她还引入一些加快task计算的特性：
+ <ol>
+   <li>异步数据感知IO</li>
+   <li>计算数据预读取和列缓存</li>
+   <li>良好地并行化执行task</li>
+ </ol> 
+得益于过去两年里社区提交的各种特性和改进，Hive能够显著的变快.<br>
+ <ul>
+   <li>https://cwiki.apache.org/confluence/display/Hive/LLAP</li>
+   <li>http://www.slideshare.net/Hadoop_Summit/llap-longlived-execution-in-hive</li>
+ </ul>
+ 
+###安装
+ <table>
+  <tr>
+    <th> 软件 </th>
+    <th> 版本 </th>
+    <th> 安装说明 </th>
+   </tr>
+   <tr>
+    <td>tez</td>
+    <td>0.8.4</td>
+    <td>[tez安装](https://tez.apache.org/install.html)，修改依赖的hadoop版本和guava版本，重新编译，<br>
+   在tez-dist目录中，找到tez-0.8.4-minimal.tar.gz文件。</td>
+   </tr>
+   <tr>
+    <td>hadoop，包括yarn，hdfs</td>
+    <td>基于2.7.1</td>
+    <td>略</td>
+   </tr>
+   <tr>
+    <td>zookeeper</td>
+    <td>3.4.6</td>
+    <td>[zookeeper安装](https://zookeeper.apache.org/doc/r3.4.8/zookeeperStarted.html#sc_RunningReplicatedZooKeeper)</td>
+   </tr>
+   <tr>
+    <td>slider</td>
+    <td>slider-0.81.1-incubating</td>
+    <td>[slider安装配置](https://slider.incubator.apache.org/docs/getting_started.html#install)
+    ，安装完成后将bin目录加入到$PATH变量中</td>
+   </tr>
+   <tr>
+    <td>hive</td>
+    <td>apache-hive-2.1.1</td>
+    <td>从apache官网后下载可执行的包，解压到相关的目录中</td>
+   </tr>
+ </table>
+ 
+###配置
+ <table>
+   <tr>
+     <th>属性</th><th>位置</th> <th>说明</th>
+   </tr>
+   <tr>
+    <td>hive.execution.engine</td>
+    <td>hive-site.xml</td>
+    <td>目前llap仅支持tez，该属性值须为tez</td>
+   </tr>
+   <tr>
+    <td>hive.llap.execution.mode</td>
+    <td>hive-site.xml</td>
+    <td>value可以为all, auto, map, none. 我们配置成all<br>
+    让所有的task都在llap进程内执行。</td>
+   </tr>
+<tr>
+    <td>hive.execution.mode</td>
+    <td>hive-site.xml</td>
+    <td>value为llap</td>
+   </tr>
+<tr>
+    <td>hive.llap.daemon.service.hosts</td>
+    <td>hive-site.xml</td>
+    <td>服务的名称，如通过"hive --service llap --name llap_service"生成启动脚本时,将该属性配置成@llap_service</td>
+   </tr>
+<tr>
+    <td>hive.llap.daemon.work.dirs</td>
+    <td>hive-site.xml</td>
+    <td>缺少该配置无法启动llap daemon, 可能是启动用户没有yarn.nodemanager.local-dirs配置上目录的读写权限。</td>
+   </tr>
+<tr>
+    <td>hive.zookeeper.quorum</td>
+    <td>hive-site.xml</td>
+    <td>缺少该配置无法启动llap daemon，zk节点用逗号分隔</td>
+   </tr>
+<tr>
+    <td>hive.zookeeper.client.port</td>
+    <td>hive-site.xml</td>
+    <td>2181</td>
+   </tr>
+<tr>
+    <td>hive.llap.daemon.memory.per.instance.mb</td>
+    <td>hive-site.xml</td>
+    <td>这个很奇怪，即使在启动命令中指定daemon内存和executor的数量，启动llap服务时也会失败，必须配置在这个文件中</td>
+   </tr>
+<tr>
+    <td>hive.llap.daemon.num.executors</td>
+    <td>hive-site.xml</td>
+    <td>同上</td>
+   </tr>
+<tr>
+    <td>tez.tez-ui.history-url.base</td>
+    <td>tez-site.xml</td>
+    <td>tez ui路径</td>
+   </tr>
+<tr>
+    <td>tez.lib.uris</td>
+    <td>tez-site.xml</td>
+    <td>hdfs上tez-0.8.4-minimal.tar.gz的路径</td>
+   </tr> 
+   <tr>
+    <td>tez.use.cluster.hadoop-libs</td>
+    <td>tez-site.xml</td>
+    <td>使用的是tez-0.8.4-minimal.tar.gz，须将该配置设置成true</td>
+   </tr>
+ <tr>
+    <td>hive.server2.enable.doAs</td>
+    <td>hive-site.xml</td>
+    <td>这里设置成false</td>
+ </tr>
+ <tr>
+    <td>hadoop.bin.path</td>
+    <td>hive-site.xml</td>
+    <td>集群上hadoop的bin路径</td>
+ </tr>
+ </table>
+
+配置完成后，执行命令：
+> hive --service llap --name llap_service --instances 16 --size 7g --loglevel INFO --args " -XX:MaxMetaspaceSize=128m -verbose:class -XX:+UseParNewGC -Xmn1g -XX:+UseConcMarkSweepGC -XX:-UseBiasedLocking -XX:+PerfDisableSharedMem" --cache 5g --executors 30 --iothreads 10 --slider-am-container-mb 1024
+
+当看到日志输出行里有：
+<pre>
+  Prepared llap-slider-ddMMyyyy/run.sh for running LLAP on Slider
+</pre>
+后意味着环境应该没什么问题了， 在当前的目录下， 可以找到llap-slider-ddMMyyyy这个目录，可以发现有四个文件：<br>
+ <em>appConfig.json  llap-09Mar2017.zip  resources.json  run.sh</em><br>打开run.sh这个文件， 可以发现启动和停止llap服务的命令：
+ <pre>
+slider stop llap_service
+slider destroy llap_service --force || slider destroy llap_service
+slider install-package --name LLAP --package  $BASEDIR/llap-09Mar2017.zip --replacepkg
+slider create llap_service --resources $BASEDIR/resources.json --template $BASEDIR/appConfig.json
+ </pre>
+
+执行run.sh脚本，就可以在yarn web管理界面中，看到Application Type为org-apache-slider， Name为llap_service的一个作业了。如果这个作业能持续4～6分钟运行，那么可以启动hive cli， 执行一个比较简单的sql来探索llap了(mode一栏显示为llap)。 
+
+	Status: Running (Executing on YARN cluster with App id application_xxxx)
+	----------------------------------------------------------------------------------------------
+        VERTICES      MODE        STATUS  TOTAL  COMPLETED  RUNNING  PENDING  FAILED  KILLED
+	----------------------------------------------------------------------------------------------
+	Map 1 ..........      llap     SUCCEEDED     24         24        0        0       0       0
+	Reducer 2 ......      llap     SUCCEEDED      1          1        0        0       0       0
+	----------------------------------------------------------------------------------------------
+	VERTICES: 02/02  [==========================>>] 100%  ELAPSED TIME: 15.01 s
+	----------------------------------------------------------------------------------------------
+
+
+如果出现问题，那么就要仔细观察application作业的日志了， 从中可以发现当前集群中还有哪些条件还没被满足，可以将调整yarn nodemanager中的参数：
+
+	<property>
+		<name>yarn.nodemanager.delete.debug-delay-sec</name>
+    	<value>3600</value>
+	</property>
+进入daemon启动失败的nodemanager节点中，通过本地启动命令和日志输出，查看失败的原因。
+
+### 问题解决
+    1, llap daemon进程不稳定，服务启动失败。
+这个问题，从目前总结来看，主要分为3类：
+<ul>
+ <li>hive-site.xml上缺少一些配置</li>
+ <li>hadoop集群和hive之间的类冲突</li>
+ <li>找不到相应的hadoop类</li>
+</ul> 
+
+	1.1 缺少配置
+这个可以结合日志和代码，可以发现缺少什么配置，在hive-site.xml文件加入相关的配置项即可。
+
+	1.2 hadoop， hive之间类冲突
+由于我们给予hadoop上做了一些改进，导致有一些找不到类方法以及类定义不存在的一些问题，解决这个问题是，按照指定的版本重新编译tez，编译没出现问题，选择minimal压缩包作为tez的安装路径并上传到hdfs上。
+
+	1.3 找不到相应的hadoop类
+在Hadoop环境中找不到hadoop类，这确实是一个很诡异的问题。通过调研发现，llap进程的启动是通过一个runLlapDaemon.sh脚本命令启动的，而这个脚本是在```llap-slider-ddMMyyyy/llap-ddMMyyyy.zip``` 这个文件中，在解压后的package/files目录中，可以找到一个llap-ddMMyyyy.tar.gz压缩包，解压这个tar.gz的压缩包，发现在同级的目录下出现bin目录，这就是```runLlapDaemon.sh```脚本的位置。
+可以发现，在这个启动脚本中对于CLASSPATH的定义：
+
+	CLASSPATH=${LLAP_DAEMON_CONF_DIR}:${LLAP_DAEMON_HOME}/lib/*:${LLAP_DAEMON_HOME}/lib/tez/*:${LLAP_DAEMON_HOME}/lib/udfs/*:.
+	
+  在上层的lib目录中，并没有发现相关的hadoop jar文件，因此导致llap daemon无法找到相应的类，解决这个问题也就是在这个CLASSPATH的末尾，加上`hadoop classpath`:
+  
+	CLASSPATH=${LLAP_DAEMON_CONF_DIR}:${LLAP_DAEMON_HOME}/lib/*:${LLAP_DAEMON_HOME}/lib/tez/*:${LLAP_DAEMON_HOME}/lib/udfs/*:.:`hadoop classpath`
+  
+这个最好加在后面，因为一些hive-site.xml的配置是在安装包的conf目录下，如果加在前面，如果hadoop环境的配置包含有hive-site.xml文件，那么会加载该文件而摒弃了客户端llap hive-site.xml的定义，会导致出现```1.1```描述的问题。<br/>
+修改完成后，重新打包，再次执行run.sh脚本即可。
+  
+按照这样的思路，解决其他问题也就容易很多了，发现某个udf引入了其他的jar包导致类冲突，那么将这个jar从lib/udf目录下移除出去，还可以修改一些配置等等。
+
+	
+	2, 查询效果没明显差异
+将表数据存储方式改成以列式来存储。 Llap默认使用off-heap的方式来缓存数据，在使用如下命令生成脚本时，```hive --service llap --name llap_service --size 4g --loglevel INFO  --cache 4g```， 提示
+
+	java.lang.IllegalArgumentException: Cache size (4.00GB) has to be smaller than the container sizing (4.00GB)
+		at com.google.common.base.Preconditions.checkArgument(Preconditions.java:92)
+		at org.apache.hadoop.hive.llap.cli.LlapServiceDriver.run(LlapServiceDriver.java:207)
+		at org.apache.hadoop.hive.llap.cli.LlapServiceDriver.main(LlapServiceDriver.java:104)
+也就是堆外缓存的大小要小于llap container设置的内存, 为什么要有这个约束? 从与社区的交流来看，size表示的含义是executor工作内存和堆外内存之和。在实践中，却发现size决定一个yarn container JVM的实际大小，并未有所有内存之和的含义。从代码注释来看，加上这一约束是为了更安全的堆外内存分配？ 目前采用的是用size表示container的实际JVM内存，用cache表示堆外内存大小。
+
+另外也可以将缓存设置成on heap的方式，通过设置：
+
+	<property>
+   	  <name>hive.llap.io.allocator.direct</name>
+   	  <value>false</value>
+ 	</property>
+
+这种方式需要注意的是，llap为每个executor配了一定的内存限额：
+
+	this.memoryPerExecutor = (long)(totalMemoryAvailableBytes * 0.8 / (float) numExecutors);
+
+这要求tez task的临时工作内存需要小于这个值，如下面这个参数：
+
+	 <property>
+      <name>tez.runtime.io.sort.mb</name>
+      <defaultValue>100</defaultValue>
+      <type>integer</type>
+    </property>	
+
+
+
+
